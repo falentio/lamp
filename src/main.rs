@@ -42,10 +42,8 @@ fn main() -> Result<()> {
     log::info!("Starting main loop");
     let is_low = AtomicBool::new(false);
     loop {
-        if btn.is_low() {
-            if !is_low.load(Ordering::Relaxed) {
-                relay.toggle()?;
-            }
+        if btn.is_low() && !is_low.load(Ordering::Relaxed) {
+            relay.toggle()?;
         }
         log::info!("Button pressed {}", btn.is_low());
         is_low.store(btn.is_low(), Ordering::Relaxed);
