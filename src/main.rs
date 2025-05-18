@@ -1,4 +1,4 @@
-use anyhow::{Error, Ok, Result};
+use anyhow::{Error, Result};
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{InterruptType, PinDriver, Pull},
@@ -16,7 +16,7 @@ use std::{
     num::NonZeroU32,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
 };
 
@@ -61,20 +61,38 @@ fn main() -> Result<()> {
     }
 
     log::debug!("Initializing relay");
-    let mut relay = PinDriver::output(peripherals.pins.gpio13)?;
+    let relay = Arc::new(Mutex::new(PinDriver::input_output(
+        peripherals.pins.gpio13,
+    )?));
 
     log::debug!("Initializing server");
     let mut server = create_server()?;
-    server.fn_handler::<Error, _>("/toggle", esp_idf_svc::http::Method::Post, |req| {
-        req.into_ok_response()?.write_all("OK".as_bytes())?;
-        Ok(())
-    });
-
+    {
+        let relay = relay.clone();
+        server.fn_handler::<Error, _>("/toggle", esp_idf_svc::http::Method::Post, move |req| {
+            if let Ok(mut relay_guard) = relay.lock() {
+                relay_guard.toggle()?;
+                let is_high = relay_guard.is_high();
+                if is_high {
+                    req.into_ok_response()?.write_all("ON".as_bytes())?;
+                } else {
+                    req.into_ok_response()?.write_all("OFF".as_bytes())?;
+                }
+            } else {
+                log::error!("Failed to lock relay");
+                return Err(Error::msg("Failed to lock relay"));
+            }
+            Ok(())
+        })?;
+    }
     log::info!("Starting main loop");
     let is_low = AtomicBool::new(false);
     loop {
         if btn.is_low() && !is_low.load(Ordering::Relaxed) {
-            relay.toggle()?;
+            if let Ok(mut relay_guard) = relay.lock() {
+                relay_guard.toggle()?;
+                log::info!("Relay toggled via button");
+            }
         }
         is_low.store(btn.is_low(), Ordering::Relaxed);
         FreeRtos::delay_ms(10);
