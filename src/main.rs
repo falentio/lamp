@@ -5,6 +5,7 @@ use esp_idf_hal::{
     io::Write,
     peripherals::Peripherals,
     task::notification::Notification,
+    timer::Timer,
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
@@ -95,6 +96,7 @@ fn main() -> Result<()> {
             }
         }
         is_low.store(btn.is_low(), Ordering::Relaxed);
+        // TODO: auto reconnect to wifi
         FreeRtos::delay_ms(10);
     }
 }
