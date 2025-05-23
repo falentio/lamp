@@ -5,7 +5,6 @@ use esp_idf_hal::{
     io::Write,
     peripherals::Peripherals,
     task::notification::Notification,
-    timer::Timer,
 };
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
@@ -68,9 +67,9 @@ fn main() -> Result<()> {
 
     log::debug!("Initializing server");
     let mut server = create_server()?;
-    {
+    server.fn_handler::<Error, _>("/toggle", esp_idf_svc::http::Method::Post, {
         let relay = relay.clone();
-        server.fn_handler::<Error, _>("/toggle", esp_idf_svc::http::Method::Post, move |req| {
+        move |req| {
             if let Ok(mut relay_guard) = relay.lock() {
                 relay_guard.toggle()?;
                 let is_high = relay_guard.is_high();
@@ -84,8 +83,8 @@ fn main() -> Result<()> {
                 return Err(Error::msg("Failed to lock relay"));
             }
             Ok(())
-        })?;
-    }
+        }
+    })?;
     log::info!("Starting main loop");
     let is_low = AtomicBool::new(false);
     loop {
