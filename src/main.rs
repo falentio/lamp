@@ -49,17 +49,6 @@ fn main() -> Result<()> {
     btn.set_pull(Pull::Up)?;
     btn.set_interrupt_type(InterruptType::LowLevel)?;
 
-    log::debug!("Initializing notification for button");
-    let notification = Notification::new();
-    let notifier = notification.notifier();
-
-    log::debug!("Subscribing to button");
-    unsafe {
-        btn.subscribe(move || {
-            notifier.notify_and_yield(NonZeroU32::new(1).unwrap());
-        })?;
-    }
-
     log::debug!("Initializing relay");
     let relay = Arc::new(Mutex::new(PinDriver::input_output(
         peripherals.pins.gpio13,
@@ -67,7 +56,7 @@ fn main() -> Result<()> {
 
     log::debug!("Initializing server");
     let mut server = create_server()?;
-    server.fn_handler::<Error, _>("/toggle", esp_idf_svc::http::Method::Post, {
+    server.fn_handler::<Error, _>("/relay/toggle", esp_idf_svc::http::Method::Post, {
         let relay = relay.clone();
         move |req| {
             if let Ok(mut relay_guard) = relay.lock() {
