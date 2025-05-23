@@ -65,35 +65,35 @@ fn main() -> Result<()> {
     let mut server = create_server()?;
     server.fn_handler::<Error, _>("/", esp_idf_svc::http::Method::Get, {
         let relays = relays.clone();
-        let relay_data = {
-            let relay_guard = relays.lock().unwrap();
-            let j = json!([
-                {
-                    "name": "lampu kamar",
-                    "isActive": relay_guard.get(0).unwrap().1.is_high(),
-                    "id": 0,
-                },
-                {
-                    "name": "lampu keluarga",
-                    "isActive": relay_guard.get(1).unwrap().1.is_high(),
-                    "id": 1,
-                },
-                {
-                    "name": "lampu ruang tamu",
-                    "isActive": relay_guard.get(2).unwrap().1.is_high(),
-                    "id": 2,
-                },
-                {
-                    "name": "lampu dapur",
-                    "isActive": relay_guard.get(3).unwrap().1.is_high(),
-                    "id": 3,
-                }
-            ]);
-            j.to_string()
-        };
-        let html = include_str!("../static/index.html").replace("$RELAYS", &relay_data);
 
         move |req| {
+            let relay_data = {
+                let relay_guard = relays.lock().unwrap();
+                let j = json!([
+                    {
+                        "name": "lampu kamar",
+                        "isActive": relay_guard.get(0).unwrap().1.is_high(),
+                        "id": 0,
+                    },
+                    {
+                        "name": "lampu keluarga",
+                        "isActive": relay_guard.get(1).unwrap().1.is_high(),
+                        "id": 1,
+                    },
+                    {
+                        "name": "lampu ruang tamu",
+                        "isActive": relay_guard.get(2).unwrap().1.is_high(),
+                        "id": 2,
+                    },
+                    {
+                        "name": "lampu dapur",
+                        "isActive": relay_guard.get(3).unwrap().1.is_high(),
+                        "id": 3,
+                    }
+                ]);
+                j.to_string()
+            };
+            let html = include_str!("../static/index.html").replace("$RELAYS", &relay_data);
             req.into_ok_response()?.write_all(html.as_bytes())?;
             Ok(())
         }
@@ -155,6 +155,22 @@ fn main() -> Result<()> {
             //     relay_guard.toggle()?;
             //     log::info!("Relay toggled via button");
             // }
+        }
+        if !wifi.is_connected()? {
+            let mut i = 1;
+            loop {
+                i += 1;
+                if let Err(e) = connect_wifi(&mut wifi) {
+                    log::error!("Failed to connect to wifi: {}", e);
+                } else {
+                    break;
+                }
+                let mut delay = 300 * i * i;
+                if delay > 3000 {
+                    delay = 3000;
+                }
+                FreeRtos::delay_ms(delay);
+            }
         }
         is_low.store(btn.is_low(), Ordering::Relaxed);
         // TODO: auto reconnect to wifi
