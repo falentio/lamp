@@ -42,11 +42,6 @@ fn main() -> Result<()> {
 
     connect_wifi(&mut wifi)?;
 
-    log::debug!("Initializing button");
-    let mut btn = PinDriver::input(peripherals.pins.gpio15)?;
-    btn.set_pull(Pull::Up)?;
-    btn.set_interrupt_type(InterruptType::LowLevel)?;
-
     log::debug!("Initializing relays");
     let relays = {
         let mut relays = Vec::new();
@@ -147,15 +142,55 @@ fn main() -> Result<()> {
         }
     })?;
 
+    log::debug!("Initializing button");
+    // TODO: make proper data structure for buttons
+    let mut btn1 = PinDriver::input(peripherals.pins.gpio15)?;
+    btn1.set_pull(Pull::Up)?;
+    btn1.set_interrupt_type(InterruptType::LowLevel)?;
+    let is_low1 = AtomicBool::new(false);
+
+    let mut btn2 = PinDriver::input(peripherals.pins.gpio18)?;
+    btn2.set_pull(Pull::Up)?;
+    btn2.set_interrupt_type(InterruptType::LowLevel)?;
+    let is_low2 = AtomicBool::new(false);
+
+    let mut btn3 = PinDriver::input(peripherals.pins.gpio19)?;
+    btn3.set_pull(Pull::Up)?;
+    btn3.set_interrupt_type(InterruptType::LowLevel)?;
+    let is_low3 = AtomicBool::new(false);
+
+    let mut btn4 = PinDriver::input(peripherals.pins.gpio21)?;
+    btn4.set_pull(Pull::Up)?;
+    btn4.set_interrupt_type(InterruptType::LowLevel)?;
+    let is_low4 = AtomicBool::new(false);
+
     log::info!("Starting main loop");
-    let is_low = AtomicBool::new(false);
     loop {
-        if btn.is_low() && !is_low.load(Ordering::Relaxed) {
-            // if let Ok(mut relay_guard) = relays.lock() {
-            //     relay_guard.toggle()?;
-            //     log::info!("Relay toggled via button");
-            // }
+        if btn1.is_low() && !is_low1.load(Ordering::Relaxed) {
+            if let Ok(mut relay_guard) = relays.lock() {
+                relay_guard.get_mut(0).unwrap().1.toggle()?;
+                log::info!("Relay toggled via button");
+            }
         }
+        if btn2.is_low() && !is_low2.load(Ordering::Relaxed) {
+            if let Ok(mut relay_guard) = relays.lock() {
+                relay_guard.get_mut(1).unwrap().1.toggle()?;
+                log::info!("Relay toggled via button");
+            }
+        }
+        if btn3.is_low() && !is_low3.load(Ordering::Relaxed) {
+            if let Ok(mut relay_guard) = relays.lock() {
+                relay_guard.get_mut(2).unwrap().1.toggle()?;
+                log::info!("Relay toggled via button");
+            }
+        }
+        if btn4.is_low() && !is_low4.load(Ordering::Relaxed) {
+            if let Ok(mut relay_guard) = relays.lock() {
+                relay_guard.get_mut(3).unwrap().1.toggle()?;
+                log::info!("Relay toggled via button");
+            }
+        }
+
         if !wifi.is_connected()? {
             let mut i = 1;
             loop {
@@ -172,8 +207,10 @@ fn main() -> Result<()> {
                 FreeRtos::delay_ms(delay);
             }
         }
-        is_low.store(btn.is_low(), Ordering::Relaxed);
-        // TODO: auto reconnect to wifi
+        is_low1.store(btn1.is_low(), Ordering::Relaxed);
+        is_low2.store(btn2.is_low(), Ordering::Relaxed);
+        is_low3.store(btn3.is_low(), Ordering::Relaxed);
+        is_low4.store(btn4.is_low(), Ordering::Relaxed);
         FreeRtos::delay_ms(10);
     }
 }
