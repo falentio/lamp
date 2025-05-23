@@ -18,17 +18,8 @@ use std::sync::{
 };
 use url::Url;
 
-use serde::Serialize;
-
 const SSID: &str = "iQOO Z7x 5G";
 const PASSWORD: &str = "123456789";
-
-#[derive(Serialize)]
-struct RelayData {
-    name: String,
-    is_active: bool,
-    id: u8,
-}
 
 fn main() -> Result<()> {
     esp_idf_svc::sys::link_patches();
@@ -115,7 +106,7 @@ fn main() -> Result<()> {
             let u = Url::parse(format!("http:///{}", req.uri()).as_str())?;
             let relay_id = {
                 let mut r = 0_u8;
-                if let Some((_, relay_id_str)) = u.query_pairs().find(|(k, v)| k == "relayId") {
+                if let Some((_, relay_id_str)) = u.query_pairs().find(|(k, _v)| k == "relayId") {
                     r = relay_id_str.parse::<u8>()?;
                 }
                 r
@@ -127,7 +118,7 @@ fn main() -> Result<()> {
             log::info!("Relay parse req uri: {}", relay_id);
             let is_active = {
                 let mut r = false;
-                if let Some((_, is_active_str)) = u.query_pairs().find(|(k, v)| k == "isActive") {
+                if let Some((_, is_active_str)) = u.query_pairs().find(|(k, _v)| k == "isActive") {
                     r = is_active_str.parse::<bool>()?;
                 }
                 r
